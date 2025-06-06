@@ -1,0 +1,26 @@
+Application Load Balancer vs Network Load Balancer: Head-to-Head Comparison
+
+1. Performance
+ALB: It offers robust performance for HTTP and HTTPS traffic, with support for HTTP/2 and WebSocket for even more efficient communication.
+
+NLB: Designed for extreme performance, it can handle tens of millions of requests per second and offers ultra-low latencies, making it ideal for handling sudden and volatile traffic patterns.
+
+2. Scalability
+ALB: It scales automatically and is capable of handling sudden increases in traffic, ideal for web applications with varying traffic patterns.
+
+NLB: It also scales automatically but is more suitable for extreme traffic conditions, given its design to handle a larger volume of requests per second.
+
+3. Security
+ALB: It offers SSL/TLS decryption and allows for integration with AWS Certificate Manager for easy SSL/TLS certificate deployment. ALB can also be integrated with AWS WAF, enhancing the application’s security.
+
+NLB: It preserves the client’s source IP address, which could be beneficial for applications that require client IP for processing. However, NLB does not natively support SSL/TLS offloading.
+
+4. Flexibility and Versatility
+ALB: With its advanced request routing based on the content of the request, ALB offers more flexibility for complex web applications. It also integrates better with container-based applications and microservices architecture.
+
+NLB: It offers flexibility in terms of handling different protocols (TCP, UDP, TLS), making it versatile for non-HTTP applications. It also supports long-lived TCP connections, which can be crucial for certain application types.
+
+5. Use Cases
+ALB: Ideal for complex web applications with HTTP/HTTPS traffic, needing path-based or host-based routing, and applications that require integration with other AWS services.
+
+NLB: More suitable for applications needing to handle a variety of protocols, extreme performance, low latency, sudden traffic spikes, and long-lived TCP connections.
