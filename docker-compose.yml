@@ -1,26 +1,78 @@
-version: '3.8'
-
+version: "3.8"
 services:
   traefik:
-    image: traefik:v3.0
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--log.level=INFO"
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=traefik"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # SSL/TLS configuration for localhost (self-signed certificates)
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
     ports:
-      - "3006:80"      # For your app
-      - "8084:8080"    # For dashboard
+      - "8081:80"
+      - "8443:443"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml
+      - "./config:/etc/traefik/dynamic"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`dashboard.localhost`)"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.entrypoints=dashboard"
+      # Global middleware for HTTPS redirect
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+      # Security headers middleware
+      - "traefik.http.middlewares.security-headers.headers.accesscontrolallowmethods=GET,OPTIONS,PUT"
+      - "traefik.http.middlewares.security-headers.headers.accesscontrolalloworiginlist=*"
+      - "traefik.http.middlewares.security-headers.headers.accesscontrolmaxage=100"
+      - "traefik.http.middlewares.security-headers.headers.addvaryheader=true"
+      - "traefik.http.middlewares.security-headers.headers.referrerpolicy=same-origin"
+      - "traefik.http.middlewares.security-headers.headers.framedeny=true"
+      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.security-headers.headers.browserxssfilter=true"
+      - "traefik.http.middlewares.security-headers.headers.stsincludesubdomains=true"
+      - "traefik.http.middlewares.security-headers.headers.stsseconds=31536000"
+      - "traefik.http.middlewares.security-headers.headers.stspreload=true"
+      # Dashboard HTTP to HTTPS redirect
+      - "traefik.http.routers.traefik-http.rule=Host(`dashboard.localhost`)"
+      - "traefik.http.routers.traefik-http.entrypoints=web"
+      - "traefik.http.routers.traefik-http.middlewares=redirect-to-https"
+      # Dashboard HTTPS configuration
+      - "traefik.http.routers.traefik.rule=Host(`dashboard.localhost`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.middlewares=auth,security-headers"
+      # Basic Auth - Generate new password with: echo $(htpasswd -nB admin) | sed -e s/\\$/\\$\\$/g
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$$2y$$05$$Ng/KaCxLILkMmFMrSRxf5.2YxVQDPH2RiG8hJ/kx/YNErfhVUlNT6"
 
-  web:
-    image: my-nginx-web:latest
-    deploy:
-      replicas: 3
+  whoami:
+    image: traefik/whoami
+    container_name: whoami
+    restart: unless-stopped
+    networks:
+      - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`localhost`)"
-      - "traefik.http.routers.web.entrypoints=web"
-      - "traefik.http.services.web.loadbalancer.server.port=80"
+      # HTTP to HTTPS redirect
+      - "traefik.http.routers.whoami-http.rule=Host(`whoami.localhost`)"
+      - "traefik.http.routers.whoami-http.entrypoints=web"
+      - "traefik.http.routers.whoami-http.middlewares=redirect-to-https"
+      # HTTPS configuration
+      - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
+      - "traefik.http.routers.whoami.middlewares=security-headers"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+
+networks:
+  traefik:
+    external: true
